@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadence — Workflow Intelligence</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0a0f1a',
+            'ink-light': '#1a2235',
+            'ink-mid': '#2a3450',
+            amber: '#e8a849',
+            'amber-dark': '#c48a30',
+            'amber-light': '#f5d49a',
+            paper: '#f4f0eb',
+            'paper-dark': '#e8e2d9',
+            sage: '#8a9a7b',
+            'sage-light': '#b3c4a3',
+            muted: '#6b7280',
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body: ['"Inter"', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f4f0eb; color: #0a0f1a; overflow-x: hidden; }
+
+    /* Film grain overlay */
+    .grain::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+    /* Scroll-triggered animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-left {
+      opacity: 0;
+      transform: translateX(-60px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal-left.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .reveal-right {
+      opacity: 0;
+      transform: translateX(60px);
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal-right.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .reveal-scale {
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal-scale.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Stagger children */
+    .stagger-children .reveal:nth-child(1) { transition-delay: 0ms; }
+    .stagger-children .reveal:nth-child(2) { transition-delay: 100ms; }
+    .stagger-children .reveal:nth-child(3) { transition-delay: 200ms; }
+    .stagger-children .reveal:nth-child(4) { transition-delay: 300ms; }
+    .stagger-children .reveal:nth-child(5) { transition-delay: 400ms; }
+    .stagger-children .reveal:nth-child(6) { transition-delay: 500ms; }
+
+    /* Nav scroll state */
+    .nav-scrolled {
+      background: rgba(244, 240, 235, 0.92) !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(10, 15, 26, 0.06);
+      box-shadow: 0 1px 12px rgba(10, 15, 26, 0.04);
+    }
+
+    /* Diagonal clip */
+    .diagonal-top {
+      clip-path: polygon(0 6%, 100% 0, 100% 100%, 0 100%);
+    }
+    .diagonal-bottom {
+      clip-path: polygon(0 0, 100% 0, 100% 94%, 0 100%);
+    }
+
+    /* FAQ accordion */
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), padding 0.4s ease;
+      padding: 0 0;
+    }
+    .faq-item.open .faq-answer {
+      max-height: 300px;
+      padding: 0 0 4px 0;
+    }
+    .faq-item .faq-icon {
+      transition: transform 0.3s ease;
+    }
+    .faq-item.open .faq-icon {
+      transform: rotate(45deg);
+    }
+
+    /* Pricing highlight */
+    .pricing-highlight {
+      transform: scale(1.04);
+      box-shadow: 0 24px 64px rgba(10, 15, 26, 0.18), 0 0 0 2px #e8a849;
+    }
+
+    /* Custom underline */
+    .editorial-underline {
+      background-image: linear-gradient(#e8a849, #e8a849);
+      background-position: 0 88%;
+      background-size: 100% 0.15em;
+      background-repeat: no-repeat;
+    }
+
+    /* Marquee */
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .marquee-track {
+      animation: marquee 30s linear infinite;
+    }
+
+    /* Button hover */
+    .btn-primary {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.1);
+      transform: translateX(-100%);
+      transition: transform 0.4s ease;
+    }
+    .btn-primary:hover::after {
+      transform: translateX(0);
+    }
+
+    /* Testimonial cards */
+    .testimonial-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .testimonial-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(10, 15, 26, 0.1);
+    }
+
+    /* Feature icon float */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .feature-icon {
+      animation: float 4s ease-in-out infinite;
+    }
+    .feature-icon:nth-child(2) { animation-delay: 0.5s; }
+    .feature-icon:nth-child(3) { animation-delay: 1s; }
+  </style>
+</head>
+<body class="grain">
+
+  <!-- ============ NAVIGATION ============ -->
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between h-20">
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 bg-ink rounded-lg flex items-center justify-center group-hover:bg-amber transition-colors duration-300">
+          <svg class="w-5 h-5 text-paper" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <span class="font-display text-xl font-bold tracking-tight text-ink">Cadence</span>
+      </a>
+      <div class="hidden md:flex items-center gap-10">
+        <a href="#features" class="font-body text-sm font-medium text-ink/60 hover:text-ink transition-colors">Features</a>
+        <a href="#pricing" class="font-body text-sm font-medium text-ink/60 hover:text-ink transition-colors">Pricing</a>
+        <a href="#testimonials" class="font-body text-sm font-medium text-ink/60 hover:text-ink transition-colors">Testimonials</a>
+        <a href="#faq" class="font-body text-sm font-medium text-ink/60 hover:text-ink transition-colors">FAQ</a>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="#" class="hidden sm:block font-body text-sm font-medium text-ink/70 hover:text-ink transition-colors">Sign in</a>
+        <a href="#" class="btn-primary bg-ink text-paper font-body text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-ink-light transition-colors">
+          Start Free Trial
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <section class="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <!-- Decorative shapes -->
+    <div class="absolute top-32 right-0 w-96 h-96 bg-amber/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-20 left-10 w-64 h-64 bg-sage/10 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-ink/[0.03] rounded-full"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] border border-ink/[0.02] rounded-full"></div>
+
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 w-full">
+      <div class="grid lg:grid-cols-12 gap-12 items-center">
+        <!-- Left: Copy -->
+        <div class="lg:col-span-7 relative z-10">
+          <div class="reveal" style="transition-delay: 0ms;">
+            <span class="inline-flex items-center gap-2 bg-ink/5 border border-ink/10 rounded-full px-4 py-1.5 mb-8">
+              <span class="w-2 h-2 bg-sage rounded-full animate-pulse"></span>
+              <span class="font-body text-xs font-semibold tracking-widest uppercase text-ink/50">Now in Public Beta</span>
+            </span>
+          </div>
+          <h1 class="reveal" style="transition-delay: 100ms;">
+            <span class="font-display text-6xl sm:text-7xl lg:text-[5.5rem] font-900 leading-[0.92] tracking-tight text-ink block">
+              Workflow<br>
+              <span class="italic text-amber">intelligence</span><br>
+              that adapts.
+            </span>
+          </h1>
+          <p class="reveal font-body text-lg sm:text-xl text-ink/50 leading-relaxed mt-8 max-w-lg" style="transition-delay: 200ms;">
+            Cadence learns how your team works, identifies bottlenecks before they form, and orchestrates processes with surgical precision.
+          </p>
+          <div class="reveal flex flex-wrap items-center gap-4 mt-10" style="transition-delay: 300ms;">
+            <a href="#" class="btn-primary bg-amber text-ink font-body text-sm font-bold px-8 py-3.5 rounded-full hover:bg-amber-dark transition-colors inline-flex items-center gap-2">
+              Start Building Free
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </a>
+            <a href="#" class="font-body text-sm font-semibold text-ink/60 hover:text-ink px-6 py-3.5 rounded-full border border-ink/15 hover:border-ink/30 transition-all inline-flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Watch Demo
+            </a>
+          </div>
+          <div class="reveal flex items-center gap-6 mt-12" style="transition-delay: 400ms;">
+            <div class="flex -space-x-2">
+              <div class="w-8 h-8 rounded-full bg-ink-light text-paper flex items-center justify-center text-xs font-bold ring-2 ring-paper">S</div>
+              <div class="w-8 h-8 rounded-full bg-amber text-ink flex items-center justify-center text-xs font-bold ring-2 ring-paper">M</div>
+              <div class="w-8 h-8 rounded-full bg-sage text-paper flex items-center justify-center text-xs font-bold ring-2 ring-paper">K</div>
+              <div class="w-8 h-8 rounded-full bg-ink text-paper flex items-center justify-center text-xs font-bold ring-2 ring-paper">+</div>
+            </div>
+            <p class="font-body text-sm text-ink/40"><span class="text-ink/70 font-semibold">2,400+</span> teams already onboard</p>
+          </div>
+        </div>
+
+        <!-- Right: Asymmetric visual -->
+        <div class="lg:col-span-5 relative reveal-right">
+          <div class="relative">
+            <!-- Main card — overlapping, rotated slightly -->
+            <div class="bg-ink rounded-2xl p-8 shadow-2xl relative z-10 transform lg:rotate-2 lg:translate-x-6">
+              <div class="flex items-center justify-between mb-6">
+                <span class="font-body text-xs font-semibold tracking-widest uppercase text-paper/40">Live Dashboard</span>
+                <span class="w-2 h-2 rounded-full bg-sage animate-pulse"></span>
+              </div>
+              <div class="space-y-4">
+                <div class="flex items-end gap-3">
+                  <div class="flex-1">
+                    <div class="font-body text-xs text-paper/30 mb-1">Cycle time</div>
+                    <div class="font-display text-3xl font-bold text-paper">2.4<span class="text-lg text-amber">d</span></div>
+                  </div>
+                  <div class="flex items-end gap-1 h-16">
+                    <div class="w-3 bg-ink-mid rounded-t h-6"></div>
+                    <div class="w-3 bg-ink-mid rounded-t h-10"></div>
+                    <div class="w-3 bg-ink-mid rounded-t h-8"></div>
+                    <div class="w-3 bg-amber rounded-t h-14"></div>
+                    <div class="w-3 bg-amber/60 rounded-t h-12"></div>
+                    <div class="w-3 bg-sage rounded-t h-16"></div>
+                  </div>
+                </div>
+                <div class="border-t border-paper/10 pt-4 grid grid-cols-3 gap-3">
+                  <div>
+                    <div class="font-body text-xs text-paper/30">Throughput</div>
+                    <div class="font-body text-sm font-bold text-paper mt-1">142 <span class="text-sage text-xs">+18%</span></div>
+                  </div>
+                  <div>
+                    <div class="font-body text-xs text-paper/30">Blocked</div>
+                    <div class="font-body text-sm font-bold text-paper mt-1">3 <span class="text-amber text-xs">-60%</span></div>
+                  </div>
+                  <div>
+                    <div class="font-body text-xs text-paper/30">Health</div>
+                    <div class="font-body text-sm font-bold text-sage mt-1">98.2%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Background card (peeking out) -->
+            <div class="absolute -top-4 -left-4 bg-paper-dark border border-ink/10 rounded-2xl p-6 w-full h-full transform -rotate-3 z-0"></div>
+            <!-- Floating badge -->
+            <div class="absolute -bottom-6 -left-4 bg-paper border border-ink/10 rounded-xl px-4 py-3 shadow-lg z-20 flex items-center gap-3">
+              <div class="w-8 h-8 bg-sage/20 rounded-lg flex items-center justify-center">
+                <svg class="w-4 h-4 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <div class="font-body text-xs font-bold text-ink">Bottleneck resolved</div>
+                <div class="font-body text-[10px] text-ink/40">Design review — 2 min ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MARQUEE STRIP ============ -->
+  <section class="py-12 border-y border-ink/5 overflow-hidden bg-paper-dark/50">
+    <div class="marquee-track flex items-center gap-16 whitespace-nowrap" style="width: max-content;">
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Workflow Orchestration</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Predictive Analytics</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Team Intelligence</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Process Mapping</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Capacity Planning</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Sprint Health</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Workflow Orchestration</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Predictive Analytics</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Team Intelligence</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Process Mapping</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Capacity Planning</span>
+      <span class="text-amber/40">◆</span>
+      <span class="font-display text-2xl font-bold text-ink/10 tracking-tight">Sprint Health</span>
+      <span class="text-amber/40">◆</span>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features" class="py-32 relative">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <!-- Section header -->
+      <div class="max-w-2xl mb-20">
+        <span class="reveal font-body text-xs font-semibold tracking-widest uppercase text-amber">Capabilities</span>
+        <h2 class="reveal font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-ink mt-4 leading-tight">
+          Every lever your<br>team actually <span class="italic">needs</span>.
+        </h2>
+        <p class="reveal font-body text-lg text-ink/40 mt-6 leading-relaxed">
+          Not feature bloat — surgical tools that compound over time.
+        </p>
+      </div>
+
+      <!-- Feature grid — 3x2 with stagger -->
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+        <!-- Feature 1 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-amber/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-amber/10 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Predictive Routing</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">ML models analyze historical patterns to route work before bottlenecks form. Acts before your standup surfaces the problem.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-sage/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-sage/10 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Flow Visibility</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">Real-time maps of how work actually moves through your organization. No more "where is this?" in Slack threads.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-amber/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-ink/5 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-ink/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Capacity Modeling</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">Know who's overloaded and who has room — before sprint planning. Data-driven staffing, not gut-feel guesswork.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-sage/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-amber/10 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Process Autopilot</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">Define rules once. Cadence enforces them silently — escalations, handoffs, SLA nudges — without another tool in the stack.</p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-amber/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-sage/10 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-sage" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Sprint Health Score</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">A single number that tells you if this sprint will land. Combines velocity, scope creep, blocker density, and team sentiment.</p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="reveal group bg-paper border border-ink/5 rounded-2xl p-8 hover:border-sage/30 hover:shadow-lg transition-all duration-300">
+          <div class="feature-icon w-12 h-12 bg-ink/5 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-ink/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+            </svg>
+          </div>
+          <h3 class="font-display text-xl font-bold text-ink mb-3">Integrations Hub</h3>
+          <p class="font-body text-sm text-ink/40 leading-relaxed">Jira, Linear, GitHub, Notion, Slack — Cadence reads from your stack. No migration. No rip-and-replace. Plug in and go.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section id="pricing" class="py-32 bg-ink diagonal-top diagonal-bottom relative">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="text-center mb-20">
+        <span class="reveal font-body text-xs font-semibold tracking-widest uppercase text-amber">Pricing</span>
+        <h2 class="reveal font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-paper mt-4">
+          Simple. <span class="italic text-amber">Honest.</span>
+        </h2>
+        <p class="reveal font-body text-lg text-paper/30 mt-6 max-w-lg mx-auto">
+          No per-seat surprises. No enterprise-only features. Scale when you're ready.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto stagger-children items-start">
+        <!-- Starter -->
+        <div class="reveal bg-ink-light border border-paper/5 rounded-2xl p-8 relative">
+          <div class="font-body text-xs font-semibold tracking-widest uppercase text-paper/30 mb-4">Starter</div>
+          <div class="flex items-baseline gap-1 mb-2">
+            <span class="font-display text-5xl font-bold text-paper">$0</span>
+            <span class="font-body text-sm text-paper/30">/month</span>
+          </div>
+          <p class="font-body text-sm text-paper/30 mb-8">For small teams exploring workflow intelligence.</p>
+          <a href="#" class="block text-center font-body text-sm font-semibold text-paper/70 border border-paper/10 hover:border-paper/30 rounded-full py-3 transition-colors">
+            Get Started
+          </a>
+          <div class="mt-8 pt-6 border-t border-paper/5 space-y-3">
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Up to 10 team members</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Basic flow visibility</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">3 integrations</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">7-day data retention</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pro (Highlighted) -->
+        <div class="reveal bg-paper rounded-2xl p-8 relative pricing-highlight">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+            <span class="bg-amber text-ink font-body text-xs font-bold tracking-widest uppercase px-4 py-1 rounded-full">Most Popular</span>
+          </div>
+          <div class="font-body text-xs font-semibold tracking-widest uppercase text-ink/40 mb-4">Pro</div>
+          <div class="flex items-baseline gap-1 mb-2">
+            <span class="font-display text-5xl font-bold text-ink">$49</span>
+            <span class="font-body text-sm text-ink/40">/month</span>
+          </div>
+          <p class="font-body text-sm text-ink/40 mb-8">For teams serious about shipping predictably.</p>
+          <a href="#" class="btn-primary block text-center font-body text-sm font-bold text-ink bg-amber hover:bg-amber-dark rounded-full py-3 transition-colors">
+            Start Free Trial
+          </a>
+          <div class="mt-8 pt-6 border-t border-ink/10 space-y-3">
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">Unlimited members</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">Predictive routing</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">All integrations</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">90-day data retention</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">Sprint health scores</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-amber flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-ink/60">Process autopilot</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enterprise -->
+        <div class="reveal bg-ink-light border border-paper/5 rounded-2xl p-8 relative">
+          <div class="font-body text-xs font-semibold tracking-widest uppercase text-paper/30 mb-4">Enterprise</div>
+          <div class="flex items-baseline gap-1 mb-2">
+            <span class="font-display text-5xl font-bold text-paper">Custom</span>
+          </div>
+          <p class="font-body text-sm text-paper/30 mb-8">For orgs needing dedicated infra and compliance.</p>
+          <a href="#" class="block text-center font-body text-sm font-semibold text-paper/70 border border-paper/10 hover:border-paper/30 rounded-full py-3 transition-colors">
+            Talk to Sales
+          </a>
+          <div class="mt-8 pt-6 border-t border-paper/5 space-y-3">
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Everything in Pro</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">SSO & SAML</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Dedicated instance</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Unlimited retention</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-sage flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span class="font-body text-sm text-paper/40">Priority support & SLA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TESTIMONIALS ============ -->
+  <section id="testimonials" class="py-32 relative">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="text-center mb-20">
+        <span class="reveal font-body text-xs font-semibold tracking-widest uppercase text-amber">Testimonials</span>
+        <h2 class="reveal font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-ink mt-4">
+          Teams that <span class="italic editorial-underline">ship</span>.
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6 stagger-children">
+        <!-- Testimonial 1 -->
+        <div class="reveal testimonial-card bg-paper border border-ink/5 rounded-2xl p-8">
+          <div class="flex gap-1 mb-6">
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <blockquote class="font-body text-sm text-ink/60 leading-relaxed mb-8">
+            "We cut our average cycle time from 11 days to 3.2. Cadence didn't just show us the bottleneck — it had already rerouted the work by the time we noticed."
+          </blockquote>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-ink text-paper flex items-center justify-center font-display font-bold text-sm">SR</div>
+            <div>
+              <div class="font-body text-sm font-semibold text-ink">Sarah Reinholt</div>
+              <div class="font-body text-xs text-ink/30">VP Engineering, Airframe</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 2 — offset up for asymmetry -->
+        <div class="reveal testimonial-card bg-paper border border-ink/5 rounded-2xl p-8 md:-mt-8">
+          <div class="flex gap-1 mb-6">
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <blockquote class="font-body text-sm text-ink/60 leading-relaxed mb-8">
+            "The Sprint Health Score alone was worth the switch. We went from 'I think we'll make it' to knowing — with data — three days before the end of sprint."
+          </blockquote>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber text-ink flex items-center justify-center font-display font-bold text-sm">JC</div>
+            <div>
+              <div class="font-body text-sm font-semibold text-ink">James Chen</div>
+              <div class="font-body text-xs text-ink/30">CTO, Parallax Labs</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimonial 3 -->
+        <div class="reveal testimonial-card bg-paper border border-ink/5 rounded-2xl p-8">
+          <div class="flex gap-1 mb-6">
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-4 h-4 text-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <blockquote class="font-body text-sm text-ink/60 leading-relaxed mb-8">
+            "Integrations were the game-changer. We kept Jira, Linear, and GitHub — Cadence just sits on top, orchestrating. Zero migration cost, immediate value."
+          </blockquote>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-sage text-paper flex items-center justify-center font-display font-bold text-sm">AL</div>
+            <div>
+              <div class="font-body text-sm font-semibold text-ink">Anika Larsen</div>
+              <div class="font-body text-xs text-ink/30">Director of Ops, Vectrix</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq" class="py-32 bg-paper-dark/50">
+    <div class="max-w-3xl mx-auto px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <span class="reveal font-body text-xs font-semibold tracking-widest uppercase text-amber">FAQ</span>
+        <h2 class="reveal font-display text-4xl sm:text-5xl font-bold tracking-tight text-ink mt-4">
+          Common <span class="italic">questions</span>.
+        </h2>
+      </div>
+
+      <div class="space-y-3" id="faq-list">
+        <div class="reveal faq-item bg-paper border border-ink/5 rounded-xl cursor-pointer" onclick="toggleFaq(this)">
+          <div class="flex items-center justify-between p-6">
+            <h3 class="font-body text-sm font-semibold text-ink pr-8">How does Cadence integrate with our existing tools?</h3>
+            <span class="faq-icon text-ink/30 text-xl font-light flex-shrink-0 leading-none">+</span>
+          </div>
+          <div class="faq-answer px-6">
+            <p class="font-body text-sm text-ink/50 leading-relaxed pb-6">
+              Cadence connects via official APIs to Jira, Linear, GitHub, GitLab, Notion, Slack, and more. Setup takes under 5 minutes per tool. We read data — we never modify your existing workflows or create issues on your behalf unless you configure autopilot rules.
+            </p>
+          </div>
+        </div>
+
+        <div class="reveal faq-item bg-paper border border-ink/5 rounded-xl cursor-pointer" onclick="toggleFaq(this)">
+          <div class="flex items-center justify-between p-6">
+            <h3 class="font-body text-sm font-semibold text-ink pr-8">What is "Predictive Routing" exactly?</h3>
+            <span class="faq-icon text-ink/30 text-xl font-light flex-shrink-0 leading-none">+</span>
+          </div>
+          <div class="faq-answer px-6">
+            <p class="font-body text-sm text-ink/50 leading-relaxed pb-6">
+              Our ML models analyze your team's historical delivery patterns — who works on what, how long stages take, and where handoffs stall. When it detects a likely bottleneck forming, it suggests or automatically reroutes work to available capacity. Think of it as a traffic system for your sprints.
+            </p>
+          </div>
+        </div>
+
+        <div class="reveal faq-item bg-paper border border-ink/5 rounded-xl cursor-pointer" onclick="toggleFaq(this)">
+          <div class="flex items-center justify-between p-6">
+            <h3 class="font-body text-sm font-semibold text-ink pr-8">Is my data secure?</h3>
+            <span class="faq-icon text-ink/30 text-xl font-light flex-shrink-0 leading-none">+</span>
+          </div>
+          <div class="faq-answer px-6">
+            <p class="font-body text-sm text-ink/50 leading-relaxed pb-6">
+              Yes. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). Enterprise plans offer dedicated instances in your preferred cloud region. We are SOC 2 Type II certified and GDPR compliant. We never train models on your data.
+            </p>
+          </div>
+        </div>
+
+        <div class="reveal faq-item bg-paper border border-ink/5 rounded-xl cursor-pointer" onclick="toggleFaq(this)">
+          <div class="flex items-center justify-between p-6">
+            <h3 class="font-body text-sm font-semibold text-ink pr-8">Can I try Cadence before committing?</h3>
+            <span class="faq-icon text-ink/30 text-xl font-light flex-shrink-0 leading-none">+</span>
+          </div>
+          <div class="faq-answer px-6">
+            <p class="font-body text-sm text-ink/50 leading-relaxed pb-6">
+              Absolutely. The Starter plan is free forever for teams up to 10 people. The Pro plan includes a 14-day free trial — no credit card required. You'll see value within the first sprint.
+            </p>
+          </div>
+        </div>
+
+        <div class="reveal faq-item bg-paper border border-ink/5 rounded-xl cursor-pointer" onclick="toggleFaq(this)">
+          <div class="flex items-center justify-between p-6">
+            <h3 class="font-body text-sm font-semibold text-ink pr-8">How long does onboarding take?</h3>
+            <span class="faq-icon text-ink/30 text-xl font-light flex-shrink-0 leading-none">+</span>
+          </div>
+          <div class="faq-answer px-6">
+            <p class="font-body text-sm text-ink/50 leading-relaxed pb-6">
+              Most teams are fully onboarded within a day. Connect your tools (5 min each), invite your team, and Cadence begins learning immediately. Predictive features become accurate after about 2 sprints of data.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA BAND ============ -->
+  <section class="py-24 bg-ink relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-1/2 left-1/4 w-96 h-96 bg-amber rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 right-1/4 w-64 h-64 bg-sage rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-4xl mx-auto px-6 lg:px-8 text-center relative z-10">
+      <h2 class="reveal font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-paper leading-tight">
+        Stop managing work.<br>
+        <span class="italic text-amber">Start orchestrating it.</span>
+      </h2>
+      <p class="reveal font-body text-lg text-paper/30 mt-6 max-w-lg mx-auto">
+        Join 2,400+ teams who replaced gut-feel planning with data-driven flow.
+      </p>
+      <div class="reveal flex flex-wrap items-center justify-center gap-4 mt-10">
+        <a href="#" class="btn-primary bg-amber text-ink font-body text-sm font-bold px-10 py-4 rounded-full hover:bg-amber-dark transition-colors inline-flex items-center gap-2">
+          Start Free Trial
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+        </a>
+        <a href="#" class="font-body text-sm font-semibold text-paper/50 hover:text-paper px-6 py-4 transition-colors">
+          Schedule a Demo →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="bg-ink pt-20 pb-10 border-t border-paper/5">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="grid md:grid-cols-5 gap-12 mb-16">
+        <!-- Brand -->
+        <div class="md:col-span-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-8 h-8 bg-amber rounded-lg flex items-center justify-center">
+              <svg class="w-4 h-4 text-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <span class="font-display text-lg font-bold text-paper">Cadence</span>
+          </div>
+          <p class="font-body text-sm text-paper/30 leading-relaxed max-w-xs">
+            Workflow intelligence for engineering teams who ship. Predictive. Adaptive. Quiet.
+          </p>
+        </div>
+
+        <!-- Product -->
+        <div>
+          <h4 class="font-body text-xs font-semibold tracking-widest uppercase text-paper/40 mb-4">Product</h4>
+          <ul class="space-y-3">
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Features</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Pricing</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Integrations</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Changelog</a></li>
+          </ul>
+        </div>
+
+        <!-- Company -->
+        <div>
+          <h4 class="font-body text-xs font-semibold tracking-widest uppercase text-paper/40 mb-4">Company</h4>
+          <ul class="space-y-3">
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">About</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Blog</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Careers</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Contact</a></li>
+          </ul>
+        </div>
+
+        <!-- Legal -->
+        <div>
+          <h4 class="font-body text-xs font-semibold tracking-widest uppercase text-paper/40 mb-4">Legal</h4>
+          <ul class="space-y-3">
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Privacy</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Terms</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">Security</a></li>
+            <li><a href="#" class="font-body text-sm text-paper/30 hover:text-paper transition-colors">SOC 2</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="border-t border-paper/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p class="font-body text-xs text-paper/20">&copy; 2026 Cadence, Inc. All rights reserved.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="text-paper/20 hover:text-paper/50 transition-colors" aria-label="Twitter">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="#" class="text-paper/20 hover:text-paper/50 transition-colors" aria-label="GitHub">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/></svg>
+          </a>
+          <a href="#" class="text-paper/20 hover:text-paper/50 transition-colors" aria-label="LinkedIn">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ SCRIPTS ============ -->
+  <script>
+    // Scroll-triggered reveal animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, {
+      threshold: 0.1,
+      rootMargin: '0px 0px -60px 0px'
+    });
+
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => {
+      observer.observe(el);
+    });
+
+    // Navbar scroll state
+    const navbar = document.getElementById('navbar');
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const currentScroll = window.pageYOffset;
+      if (currentScroll > 80) {
+        navbar.classList.add('nav-scrolled');
+      } else {
+        navbar.classList.remove('nav-scrolled');
+      }
+      lastScroll = currentScroll;
+    }, { passive: true });
+
+    // FAQ accordion
+    function toggleFaq(item) {
+      const wasOpen = item.classList.contains('open');
+      // Close all
+      document.querySelectorAll('.faq-item').forEach(faq => faq.classList.remove('open'));
+      // Toggle clicked
+      if (!wasOpen) {
+        item.classList.add('open');
+      }
+    }
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
